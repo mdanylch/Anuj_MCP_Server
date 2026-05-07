@@ -99,10 +99,9 @@ function getServer() {
   return server;
 }
 
-const app = createMcpExpressApp({
-  host: '0.0.0.0',
-  allowedHosts: ['localhost', '127.0.0.1']
-});
+// Bind publicly for App Runner. Don't restrict Host header here because
+// App Runner will use a service URL hostname (not localhost).
+const app = createMcpExpressApp({ host: '0.0.0.0' });
 
 app.post('/mcp', async (req: Request, res: Response) => {
   const server = getServer();
