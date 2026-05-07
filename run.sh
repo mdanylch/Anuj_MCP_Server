@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
+# App Runner *start* command: sh run.sh
 set -eu
+cd "$(dirname "$0")"
 
 # App Runner passes PORT by default (8080 unless configured otherwise).
 if [ -x ".node/bin/node" ] && [ -x ".node/bin/npm" ]; then

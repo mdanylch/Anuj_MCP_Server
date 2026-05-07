@@ -1,15 +1,15 @@
 #!/usr/bin/env sh
+# App Runner *build* command: sh start.sh
+# Python 3.11 managed runtime: no system Node at build or run — bundle Node under ./.node
 set -eu
+cd "$(dirname "$0")"
 
 ensure_local_node() {
-  # If Node is already available in PATH, use it.
   if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
     echo "Node already available: $(node -v)"
     return 0
   fi
 
-  # Bundle Node into the app directory so it will also be present at runtime.
-  # App Runner copies /app from build to runtime; system package installs do not persist.
   NODE_VERSION="${NODE_VERSION:-22.16.0}"
   OS="linux"
 
@@ -30,7 +30,8 @@ ensure_local_node() {
     return 0
   fi
 
-  echo "Bundling Node.js v${NODE_VERSION} for ${OS}-${NODE_ARCH}..."
+  # Prefer .tar.gz: gzip + tar -xzf works on minimal images; .tar.xz needs xz (often missing).
+  echo "Bundling Node.js v${NODE_VERSION} for ${OS}-${NODE_ARCH} (.tar.gz)..."
 
   if ! command -v curl >/dev/null 2>&1; then
     if command -v yum >/dev/null 2>&1; then
@@ -49,32 +50,37 @@ ensure_local_node() {
   fi
 
   BASE_URL="https://nodejs.org/dist/v${NODE_VERSION}"
-  TARBALL="node-v${NODE_VERSION}-${OS}-${NODE_ARCH}.tar.xz"
+  TARBALL="node-v${NODE_VERSION}-${OS}-${NODE_ARCH}.tar.gz"
   SHASUMS="SHASUMS256.txt"
 
-  # Download checksums and tarball
   curl -fsSLO "${BASE_URL}/${SHASUMS}"
   curl -fsSLO "${BASE_URL}/${TARBALL}"
 
-  # Verify tarball checksum before extracting (supply-chain hardening)
-  if command -v sha256sum >/dev/null 2>&1; then
-    grep " ${TARBALL}\$" "${SHASUMS}" | sha256sum -c -
-  elif command -v shasum >/dev/null 2>&1; then
-    # macOS/bsd fallback; unlikely on App Runner but harmless
-    EXPECTED="$(grep " ${TARBALL}\$" "${SHASUMS}" | awk '{print $1}')"
-    ACTUAL="$(shasum -a 256 "${TARBALL}" | awk '{print $1}')"
-    [ "$EXPECTED" = "$ACTUAL" ]
-  else
-    echo "No SHA-256 tool available to verify Node.js download" >&2
+  verify_sha256() {
+    EXPECTED="$(grep -F "  ${TARBALL}" "${SHASUMS}" | head -n1 | awk '{print $1}')"
+    if [ -z "${EXPECTED}" ]; then
+      echo "Could not find checksum line for ${TARBALL} in ${SHASUMS}" >&2
+      return 1
+    fi
+    if command -v sha256sum >/dev/null 2>&1; then
+      printf '%s  %s\n' "${EXPECTED}" "${TARBALL}" | sha256sum -c -
+      return $?
+    fi
+    if command -v openssl >/dev/null 2>&1; then
+      ACTUAL="$(openssl dgst -sha256 "${TARBALL}" | awk '{print $NF}')"
+      [ "${EXPECTED}" = "${ACTUAL}" ]
+      return $?
+    fi
+    echo "No sha256sum or openssl available to verify Node.js download" >&2
     return 1
-  fi
+  }
 
-  # Extract and place into .node/
+  verify_sha256
+
   rm -rf "${DEST_DIR}" "node-v${NODE_VERSION}-${OS}-${NODE_ARCH}"
-  tar -xJf "${TARBALL}"
+  tar -xzf "${TARBALL}"
   mv "node-v${NODE_VERSION}-${OS}-${NODE_ARCH}" "${DEST_DIR}"
 
-  # Cleanup downloads to keep the artifact smaller
   rm -f "${TARBALL}" "${SHASUMS}"
 
   export PATH="$(pwd)/${DEST_DIR}/bin:$PATH"
@@ -88,4 +94,3 @@ npm -v
 
 npm ci
 npm run build
-
