@@ -1,15 +1,12 @@
 version: 1.0
-runtime: nodejs22
+runtime: python3
 
 build:
   commands:
-    pre-build:
-      - npm ci
     build:
-      - npm run build
+      - sh start.sh
 
 run:
-  command: npm start
+  command: sh run.sh
   network:
     port: 8080
-
