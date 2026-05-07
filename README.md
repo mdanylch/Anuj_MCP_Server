@@ -2,6 +2,8 @@
 
 Python **FastMCP** server matching the pattern used in [store_address_2000](https://github.com/mdanylch/store_address_2000): `pip install -t deps` at build, **Uvicorn** at run, optional `MCP_REQUEST_HEADERS` auth.
 
+Use **FastMCP 3.x** (`fastmcp>=3.0` in `requirements.txt`) so the tool **input schema** matches the working server: required `order_id` (string), `additionalProperties: false`, and an **object** output schema. If your client still shows `orderid` or **Output N/A**, the client is likely hitting an **old deployment** (Node) or a **cached** tool list — redeploy from latest `main` and refresh the MCP connection.
+
 ## Tool
 
 - **`check_order_status`** — Fetches **full order details** from MockAPI:  

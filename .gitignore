@@ -4,6 +4,7 @@ deps/
 dist/
 __pycache__/
 *.pyc
+_pip_probe/
 .env
 .env.*
 npm-debug.log*

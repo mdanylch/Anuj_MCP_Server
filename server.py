@@ -87,6 +87,10 @@ _HEADER_RULES = _load_custom_header_rules()
 
 mcp = server.FastMCP("Anuj Order Details MCP")
 
+# Explicit object output schema so MCP clients show the same pattern as store_address_2000
+# (open object: success, order/orders, error, etc.).
+_ORDER_TOOL_OUTPUT_SCHEMA: dict = {"type": "object", "additionalProperties": True}
+
 
 def _fetch_order_json(order_id: str) -> object:
     """Synchronous GET to MockAPI; used from async via asyncio.to_thread."""
@@ -95,7 +99,7 @@ def _fetch_order_json(order_id: str) -> object:
         return json.loads(resp.read().decode())
 
 
-@mcp.tool()
+@mcp.tool(output_schema=_ORDER_TOOL_OUTPUT_SCHEMA)
 async def check_order_status(order_id: str) -> dict:
     """
     Look up an order by id and return full order details from the cars API.
